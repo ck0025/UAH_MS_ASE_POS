@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>UAH MS ASE Official POS Generator</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/downloadjs@1.4.7"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; padding: 20px; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1 { color: #004d99; text-align: center; }
+        .instruction { background: #e7f3ff; border-left: 4px solid #004d99; padding: 15px; margin-bottom: 25px; }
+        
+        .course-row { display: grid; grid-template-columns: 30px 140px 1fr 100px 90px 90px; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .header-row { font-weight: bold; color: #004d99; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; }
+        
+        select, input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 100%; box-sizing: border-box; }
+        .readonly-box { background-color: #f9f9f9; }
+        
+        .btn-container { text-align: center; margin-top: 25px; }
+        button { background-color: #004d99; color: white; padding: 14px 30px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        #final-section { display: none; margin-top: 30px; padding: 25px; border: 2px solid #28a745; background: #f4fff6; border-radius: 8px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .upload-box { border: 2px dashed #28a745; padding: 15px; text-align: center; margin-bottom: 20px; border-radius: 8px; }
+        .radio-group { padding: 10px; background: #fff; border: 1px solid #ccc; border-radius: 4px; display: flex; gap: 20px; align-items: center; }
+        
+        .validation-warning { color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 4px; display: none; margin-top: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>MS ASE Program of Study Validator</h1>
+    
+    <div class="instruction">
+        <strong>Step 1:</strong> Select 10 unique courses. The validator checks for core requirements, duplicate entries, and 500-level limits.
+    </div>
+
+    <div class="course-row header-row">
+        <span>#</span>
+        <span>Course Number</span>
+        <span>Course Title</span>
+        <span>Term</span>
+        <span>Year</span>
+        <span>Grade</span>
+    </div>
+
+    <div id="course-form"></div>
+
+    <div id="revalidate-msg" class="validation-warning">
+        ⚠️ Changes detected. Please re-validate your program to enable PDF generation.
+    </div>
+
+    <div class="btn-container">
+        <button onclick="validateProgram()">1. Validate Requirements</button>
+    </div>
+
+    <div id="results"></div>
+
+    <div id="final-section">
+        <h3 style="margin-top:0; color:#1e7e34;">Step 2: Thesis Option & Student Details</h3>
+        
+        <div class="upload-box">
+            <label><strong>Select your 'gs_masters_pos.pdf' template:</strong></label><br><br>
+            <input type="file" id="pdf-upload" accept=".pdf">
+        </div>
+
+        <div class="form-grid">
+            <div style="grid-column: span 2;">
+                <label><strong>Program Track:</strong></label>
+                <div class="radio-group">
+                    <label><input type="radio" name="track" value="Non-Thesis" checked> Non-Thesis</label>
+                    <label><input type="radio" name="track" value="Thesis"> Thesis</label>
+                </div>
+            </div>
+            <input type="text" id="pdf-name" placeholder="Student Full Name">
+            <input type="text" id="pdf-ano" placeholder="A-Number (e.g. A01234567)">
+            <input type="email" id="pdf-email" placeholder="UAH Email">
+            <input type="text" id="pdf-date" placeholder="Date (MM/DD/YYYY)">
+        </div>
+        
+        <div class="btn-container">
+            <button style="background-color: #28a745;" onclick="generateOfficialPDF()">Generate & Download Filled PDF</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const catalog = {
+        "MAE 530": "Fundamentals of Aerodynamics", "MAE 540": "Rocket Propulsion I", "MAE 541": "Airbreathing Propulsion",
+        "MAE 544": "Intro to Electric Propulsion", "MAE 555": "Process Control & Instrumentation", "MAE 560": "Introduction to Robotics",
+        "MAE 568": "Introduction to Orbital Mechanics", "MAE 585": "Design of Mech/Aero Systems", "MAE 623": "Computational Methods in MAE",
+        "MAE 627": "Engineering Systems", "MAE 631": "Boundary Layer Theory", "MAE 640": "Rocket Propulsion II",
+        "MAE 641": "Advanced Airbreathing Prop", "MAE 643": "Adv Liquid Rocket Prop", "MAE 650": "Intro to Controls Engine",
+        "MAE 652": "Advanced Flight Dynamics", "MAE 671": "Continuum Mechanics", "MAE 674": "Finite Element Analysis",
+        "MAE 692": "Graduate Engineering Analysis I", "MAE 693": "Graduate Engineering Analysis II", "MAE 780": "Adv Topics in Systems Eng",
+        "ISE 502": "Engineering Systems Dynamics", "ISE 526": "Design & Analysis of Exp", "ISE 627": "Engineering Systems",
+        "ISE 637": "Systems Modeling & Analysis", "ISE 638": "Engineering Reliability", "ISE 639": "Systems Integration",
+        "ISE 690": "Statistical Methods for Eng"
+    };
+
+    const grades = ["TBD", "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"];
+    const terms = ["Spring", "Summer", "Fall"];
+    const sortedCourses = Object.keys(catalog).sort();
+
+    // Generate Form
+    let html = '';
+    for(let i=1; i<=10; i++) {
+        html += `<div class="course-row">
+            <span>${i}</span>
+            <select id="num-${i}" class="course-input" onchange="updateTitle(${i})">
+                <option value="">-- Select --</option>
+                ${sortedCourses.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <input type="text" id="title-${i}" class="readonly-box" placeholder="Title" readonly>
+            <select id="term-${i}" class="course-input">
+                ${terms.map(t => `<option value="${t}">${t}</option>`).join('')}
+            </select>
+            <input type="number" id="year-${i}" class="course-input" placeholder="2026">
+            <select id="grade-${i}" class="course-input">
+                ${grades.map(g => `<option value="${g}">${g}</option>`).join('')}
+            </select>
+        </div>`;
+    }
+    document.getElementById('course-form').innerHTML = html;
+
+    // Reset Step 2 if any course data changes
+    document.getElementById('course-form').addEventListener('change', (e) => {
+        if (e.target.classList.contains('course-input')) {
+            document.getElementById('final-section').style.display = 'none';
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('revalidate-msg').style.display = 'block';
+        }
+    });
+
+    function updateTitle(i) {
+        const val = document.getElementById(`num-${i}`).value;
+        document.getElementById(`title-${i}`).value = catalog[val] || '';
+    }
+
+    function validateProgram() {
+        let selections = [];
+        let rawSelections = [];
+        for(let i=1; i<=10; i++) {
+            let val = document.getElementById(`num-${i}`).value;
+            if(val) {
+                selections.push(val);
+                rawSelections.push(val);
+            }
+        }
+
+        const errors = [];
+        
+        // 1. Check for duplicates
+        const duplicates = rawSelections.filter((item, index) => rawSelections.indexOf(item) !== index);
+        const uniqueDuplicates = [...new Set(duplicates)];
+        if(uniqueDuplicates.length > 0) {
+            errors.push(`Duplicate courses detected: ${uniqueDuplicates.join(", ")}`);
+        }
+
+        // 2. Check for completeness
+        if(selections.length < 10) errors.push("Please select all 10 courses.");
+        
+        // 3. Core Requirements
+        if(!selections.includes("MAE 692")) errors.push("Missing MAE 692 (Core).");
+        if(!selections.includes("ISE 627")) errors.push("Missing ISE 627 (Core).");
+        
+        // 4. 500-level limit
+        const fiveHundreds = selections.filter(c => c.includes(" 5")).length;
+        if(fiveHundreds > 3) errors.push(`Too many 500-level courses (${fiveHundreds}/3 allowed).`);
+
+        if(errors.length === 0) {
+            document.getElementById('results').innerHTML = "<p style='color:green; text-align:center; font-weight:bold;'>✓ Validation Successful!</p>";
+            document.getElementById('final-section').style.display = "block";
+            document.getElementById('revalidate-msg').style.display = 'none';
+            document.getElementById('final-section').scrollIntoView({ behavior: 'smooth' });
+        } else {
+            document.getElementById('results').innerHTML = `<p style='color:red; text-align:center;'><b>Requirements Not Met:</b><br>${errors.join("<br>")}</p>`;
+            document.getElementById('final-section').style.display = "none";
+        }
+    }
+
+    async function generateOfficialPDF() {
+        try {
+            const { PDFDocument } = PDFLib;
+            const fileInput = document.getElementById('pdf-upload');
+            if (fileInput.files.length === 0) { alert("Please upload the PDF template."); return; }
+
+            const bytes = await fileInput.files[0].arrayBuffer();
+            const pdfDoc = await PDFDocument.load(bytes);
+            const form = pdfDoc.getForm();
+
+            const isThesis = document.querySelector('input[name="track"]:checked').value === 'Thesis';
+            try {
+                const tBox = form.getCheckBox('Thesis');
+                const ntBox = form.getCheckBox('Non-Thesis');
+                if (isThesis) { tBox.check(); ntBox.uncheck(); } 
+                else { ntBox.check(); tBox.uncheck(); }
+            } catch(e) {}
+
+            try {
+                form.getTextField('Student Name').setText(document.getElementById('pdf-name').value);
+                form.getTextField('Student A Number').setText(document.getElementById('pdf-ano').value);
+                form.getTextField('Student Email').setText(document.getElementById('pdf-email').value);
+                form.getTextField('Date 1').setText(document.getElementById('pdf-date').value);
+					 form.getTextField('Department/Program').setText(`MAE`);
+					 form.getTextField('Degree').setText(`MS ASE`);
+            } catch(e) {}
+				
+				// 1. Create the map to abbreviate the terms
+				const termMap = {
+					 "Spring": "Sp",
+					 "Summer": "Su",
+					 "Fall": "Fa"
+				};
+
+            for (let i = 1; i <= 10; i++) {
+                const cNum = document.getElementById(`num-${i}`).value;
+                const cTitle = catalog[cNum] || "";
+                const cTerm = document.getElementById(`term-${i}`).value;
+                const cYear = document.getElementById(`year-${i}`).value;
+                const cGrade = document.getElementById(`grade-${i}`).value;
+					 
+					 // Translate the term using the map
+					 const shortTerm = termMap[cTerm] || cTerm;
+					 
+					 // Handle the specific naming anomalies you found
+					 let titleFieldName = `Title ${i}`;
+					 if (i === 3) titleFieldName = "Title  3"; // Double space
+					 if (i === 9) titleFieldName = "Title  9"; // Double space
+					 
+					 let hoursFieldName = `Hours ${i}`;
+					 if (i === 3) hoursFieldName = "Hours  3"; // Double space
+
+                try {
+                    form.getTextField(`Course ${i}`).setText(cNum);
+                    form.getTextField(titleFieldName).setText(cTitle);
+                    form.getTextField(hoursFieldName).setText('3');
+                    form.getTextField(`Grade ${i}`).setText(cGrade);
+                    form.getTextField(`Term ${i}`).setText(`${cYear} ${shortTerm}`);
+                } catch(e) {}
+            }
+
+            const pdfBytes = await pdfDoc.save();
+				const rawName = document.getElementById('pdf-name').value || "Student";
+				const formattedName = rawName.trim().replace(/ /g, '-');
+            download(pdfBytes, `UAH_MS_ASE_POS_Filled_${formattedName}.pdf`, "application/pdf");
+        } catch (err) { alert("Error generating PDF. Check file format."); }
+    }
+</script>
+</body>
+</html>
