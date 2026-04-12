@@ -61,10 +61,12 @@
     <div id="final-section">
         <h3 style="margin-top:0; color:#1e7e34;">Step 2: Thesis Option & Student Details</h3>
         
+        <!--
         <div class="upload-box">
             <label><strong>Select your 'gs_masters_pos.pdf' template:</strong></label><br><br>
             <input type="file" id="pdf-upload" accept=".pdf">
         </div>
+        -->
 
         <div class="form-grid">
             <div style="grid-column: span 2;">
@@ -217,8 +219,8 @@
                 form.getTextField('Student A Number').setText(document.getElementById('pdf-ano').value);
                 form.getTextField('Student Email').setText(document.getElementById('pdf-email').value);
                 form.getTextField('Date 1').setText(document.getElementById('pdf-date').value);
-					 form.getTextField('Department/Program').setText(`MAE`);
-					 form.getTextField('Degree').setText(`MS ASE`);
+                form.getTextField('Department/Program').setText(`MAE`);
+                form.getTextField('Degree').setText(`MS ASE`);
             } catch(e) {}
 				
 				// 1. Create the map to abbreviate the terms
