@@ -58,7 +58,7 @@
             <li>MAE 692 - GRAD ENGR ANALYSIS I (3 credit hours)</li>
             <li>Additional math course: 3 credit hours from MAE 623, MAE 671, MAE 674, MAE 693, MAE 780, ISE 690</li>
             <li>Up to three 500 level courses</li>
-            <li>The majority of courses, not counting thesis courses, must be from MAE. Otherwise, in general, graduate courses from the College of Engineering or College of Science are allowed to be counted towards the degree.</li>
+            <li>At least six courses must be from MAE. Otherwise, in general, graduate courses from the College of Engineering or College of Science are allowed to be counted towards the degree.</li>
         </ul>
     </div>
 
@@ -244,6 +244,12 @@
 
         if (!hasMathElective) {
             errors.push("Missing required Math Elective (MAE 623, 671, 674, 693, 780, or ISE 690).");
+        }
+
+        // 7. MAE majority requirement
+        const maeCourses = selections.filter(course => course.startsWith("MAE ")).length;
+        if (maeCourses < 6) {
+            errors.push(`At least six courses must be from MAE. Current MAE courses: ${maeCourses}.`);
         }
 
         if(errors.length === 0) {
