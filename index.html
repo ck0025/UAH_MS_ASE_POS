@@ -185,6 +185,14 @@
         const fiveHundreds = selections.filter(c => c.includes(" 5")).length;
         if(fiveHundreds > 3) errors.push(`Too many 500-level courses (${fiveHundreds}/3 allowed).`);
 
+        // 5. Second math requirement
+        const mathElectives = ["MAE 623", "MAE 671", "MAE 674", "MAE 693", "MAE 780", "ISE 690"];
+        const hasMathElective = selections.some(course => mathElectives.includes(course));
+
+        if (!hasMathElective) {
+            errors.push("Missing required Math Elective (MAE 623, 671, 674, 693, 780, or ISE 690).");
+        }
+
         if(errors.length === 0) {
             document.getElementById('results').innerHTML = "<p style='color:green; text-align:center; font-weight:bold;'>✓ Validation Successful!</p>";
             document.getElementById('final-section').style.display = "block";
