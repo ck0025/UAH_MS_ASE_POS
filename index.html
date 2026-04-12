@@ -184,12 +184,25 @@
     async function generateOfficialPDF() {
         try {
             const { PDFDocument } = PDFLib;
-            const fileInput = document.getElementById('pdf-upload');
-            if (fileInput.files.length === 0) { alert("Please upload the PDF template."); return; }
+            //const fileInput = document.getElementById('pdf-upload');
+            //if (fileInput.files.length === 0) { alert("Please upload the PDF template."); return; }
 
-            const bytes = await fileInput.files[0].arrayBuffer();
+            // 1. Fetch the POS template directly from your GitHub
+            const templateURL = 'https://raw.githubusercontent.com/ck0025/UAH_MS_ASE_POS/main/gs_masters_pos.pdf';
+            
+            // Show a loading state (optional but helpful)
+            console.log("Fetching PDF template from GitHub...");
+            
+            const response = await fetch(templateURL);
+            if (!response.ok) throw new Error("Could not download the PDF template from GitHub.");
+            
+            const bytes = await response.arrayBuffer();
             const pdfDoc = await PDFDocument.load(bytes);
             const form = pdfDoc.getForm();
+
+            //const bytes = await fileInput.files[0].arrayBuffer();
+            //const pdfDoc = await PDFDocument.load(bytes);
+            //const form = pdfDoc.getForm();
 
             const isThesis = document.querySelector('input[name="track"]:checked').value === 'Thesis';
             try {
