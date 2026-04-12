@@ -5,14 +5,14 @@
     <title>UAH MS ASE Official POS Generator</title>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/downloadjs@1.4.7"></script>
-    <script src="courses.js"></script>
+    <script src="catalog.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; padding: 20px; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
         h1 { color: #004d99; text-align: center; }
         .instruction { background: #e7f3ff; border-left: 4px solid #004d99; padding: 15px; margin-bottom: 25px; }
         
-        .course-row { display: grid; grid-template-columns: 30px 140px 1fr 100px 90px 90px; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .course-row { display: grid; grid-template-columns: 30px 100px 140px 1fr 100px 90px 90px; gap: 10px; margin-bottom: 10px; align-items: center; }
         .header-row { font-weight: bold; color: #004d99; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; }
         
         select, input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 100%; box-sizing: border-box; }
@@ -64,6 +64,7 @@
 
     <div class="course-row header-row">
         <span>#</span>
+        <span>Department</span>
         <span>Course Number</span>
         <span>Course Title</span>
         <span>Term</span>
@@ -117,16 +118,42 @@
 
     const grades = ["TBD", "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"];
     const terms = ["Spring", "Summer", "Fall"];
-    const sortedCourses = Object.keys(catalog).sort();
+    const sortedDepartments = Object.keys(catalog).sort();
+    const departmentOptions = sortedDepartments.map(department => `<option value="${department}">${department}</option>`).join('');
+
+    function sortCourseNumbers(courseNumbers) {
+        return courseNumbers.sort((a, b) => {
+            const aMatch = a.match(/^(\d+)([A-Z]*)$/);
+            const bMatch = b.match(/^(\d+)([A-Z]*)$/);
+            if (!aMatch || !bMatch) return a.localeCompare(b);
+            const numberDiff = Number(aMatch[1]) - Number(bMatch[1]);
+            return numberDiff || aMatch[2].localeCompare(bMatch[2]);
+        });
+    }
+
+    function getSelectedCourse(i) {
+        const department = document.getElementById(`dept-${i}`).value;
+        const courseNumber = document.getElementById(`num-${i}`).value;
+        return catalog[department]?.[courseNumber] || null;
+    }
+
+    function getSelectedCourseLabel(i) {
+        const department = document.getElementById(`dept-${i}`).value;
+        const courseNumber = document.getElementById(`num-${i}`).value;
+        return department && courseNumber ? `${department} ${courseNumber}` : "";
+    }
 
     // Generate Form
     let html = '';
     for(let i=1; i<=10; i++) {
         html += `<div class="course-row">
             <span>${i}</span>
-            <select id="num-${i}" class="course-input" onchange="updateTitle(${i})">
-                <option value="">-- Select --</option>
-                ${sortedCourses.map(c => `<option value="${c}">${c}</option>`).join('')}
+            <select id="dept-${i}" class="course-input" onchange="updateCourseOptions(${i})">
+                <option value="">-- Dept --</option>
+                ${departmentOptions}
+            </select>
+            <select id="num-${i}" class="course-input" onchange="updateTitle(${i})" disabled>
+                <option value="">-- Course --</option>
             </select>
             <input type="text" id="title-${i}" class="readonly-box" placeholder="Title" readonly>
             <select id="term-${i}" class="course-input">
@@ -149,16 +176,29 @@
         }
     });
 
+    function updateCourseOptions(i) {
+        const department = document.getElementById(`dept-${i}`).value;
+        const courseSelect = document.getElementById(`num-${i}`);
+        const courseNumbers = department ? sortCourseNumbers(Object.keys(catalog[department] || {})) : [];
+
+        courseSelect.innerHTML = `<option value="">-- Course --</option>${courseNumbers.map(courseNumber => {
+            const course = catalog[department][courseNumber];
+            return `<option value="${courseNumber}">${courseNumber} - ${course.title}</option>`;
+        }).join('')}`;
+        courseSelect.disabled = !department;
+        updateTitle(i);
+    }
+
     function updateTitle(i) {
-        const val = document.getElementById(`num-${i}`).value;
-        document.getElementById(`title-${i}`).value = catalog[val] || '';
+        const course = getSelectedCourse(i);
+        document.getElementById(`title-${i}`).value = course?.title || '';
     }
 
     function validateProgram() {
         let selections = [];
         let rawSelections = [];
         for(let i=1; i<=10; i++) {
-            let val = document.getElementById(`num-${i}`).value;
+            let val = getSelectedCourseLabel(i);
             if(val) {
                 selections.push(val);
                 rawSelections.push(val);
@@ -182,7 +222,7 @@
         if(!selections.includes("ISE 627")) errors.push("Missing ISE 627 (Core).");
         
         // 4. 500-level limit
-        const fiveHundreds = selections.filter(c => c.includes(" 5")).length;
+        const fiveHundreds = selections.filter(c => /^[A-Z]+ 5/.test(c)).length;
         if(fiveHundreds > 3) errors.push(`Too many 500-level courses (${fiveHundreds}/3 allowed).`);
 
         // 5. Second math requirement
@@ -252,8 +292,10 @@
 				};
 
             for (let i = 1; i <= 10; i++) {
-                const cNum = document.getElementById(`num-${i}`).value;
-                const cTitle = catalog[cNum] || "";
+                const cNum = getSelectedCourseLabel(i);
+                const course = getSelectedCourse(i);
+                const cTitle = course?.title || "";
+                const cHours = course?.credits?.toString() || "3";
                 const cTerm = document.getElementById(`term-${i}`).value;
                 const cYear = document.getElementById(`year-${i}`).value;
                 const cGrade = document.getElementById(`grade-${i}`).value;
@@ -272,7 +314,7 @@
                 try {
                     form.getTextField(`Course ${i}`).setText(cNum);
                     form.getTextField(titleFieldName).setText(cTitle);
-                    form.getTextField(hoursFieldName).setText('3');
+                    form.getTextField(hoursFieldName).setText(cHours);
                     form.getTextField(`Grade ${i}`).setText(cGrade);
                     form.getTextField(`Term ${i}`).setText(`${cYear} ${shortTerm}`);
                 } catch(e) {}
