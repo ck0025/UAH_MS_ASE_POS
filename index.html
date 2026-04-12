@@ -12,7 +12,7 @@
         h1 { color: #004d99; text-align: center; }
         .instruction { background: #e7f3ff; border-left: 4px solid #004d99; padding: 15px; margin-bottom: 25px; }
         
-        .course-row { display: grid; grid-template-columns: 30px 100px 140px 1fr 100px 90px 90px; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .course-row { display: grid; grid-template-columns: 30px 90px 130px 1fr 80px 95px 85px 85px; gap: 10px; margin-bottom: 10px; align-items: center; }
         .header-row { font-weight: bold; color: #004d99; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; }
         
         select, input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 100%; box-sizing: border-box; }
@@ -67,6 +67,7 @@
         <span>Department</span>
         <span>Course Number</span>
         <span>Course Title</span>
+        <span>Credits</span>
         <span>Term</span>
         <span>Year</span>
         <span>Grade</span>
@@ -143,6 +144,11 @@
         return department && courseNumber ? `${department} ${courseNumber}` : "";
     }
 
+    function getDisplayCredits(course) {
+        if (!course) return "";
+        return typeof course.credits === "number" ? course.credits.toString() : "3";
+    }
+
     // Generate Form
     let html = '';
     for(let i=1; i<=10; i++) {
@@ -156,6 +162,7 @@
                 <option value="">-- Course --</option>
             </select>
             <input type="text" id="title-${i}" class="readonly-box" placeholder="Title" readonly>
+            <input type="text" id="credits-${i}" class="readonly-box" placeholder="Credits" readonly>
             <select id="term-${i}" class="course-input">
                 ${terms.map(t => `<option value="${t}">${t}</option>`).join('')}
             </select>
@@ -192,16 +199,19 @@
     function updateTitle(i) {
         const course = getSelectedCourse(i);
         document.getElementById(`title-${i}`).value = course?.title || '';
+        document.getElementById(`credits-${i}`).value = getDisplayCredits(course);
     }
 
     function validateProgram() {
         let selections = [];
         let rawSelections = [];
+        let totalCredits = 0;
         for(let i=1; i<=10; i++) {
             let val = getSelectedCourseLabel(i);
             if(val) {
                 selections.push(val);
                 rawSelections.push(val);
+                totalCredits += Number(getDisplayCredits(getSelectedCourse(i)));
             }
         }
 
@@ -216,16 +226,19 @@
 
         // 2. Check for completeness
         if(selections.length < 10) errors.push("Please select all 10 courses.");
+
+        // 3. Check total credit hours
+        if(totalCredits !== 30) errors.push(`Total credit hours must equal 30. Current total: ${totalCredits}.`);
         
-        // 3. Core Requirements
+        // 4. Core Requirements
         if(!selections.includes("MAE 692")) errors.push("Missing MAE 692 (Core).");
         if(!selections.includes("ISE 627")) errors.push("Missing ISE 627 (Core).");
         
-        // 4. 500-level limit
+        // 5. 500-level limit
         const fiveHundreds = selections.filter(c => /^[A-Z]+ 5/.test(c)).length;
         if(fiveHundreds > 3) errors.push(`Too many 500-level courses (${fiveHundreds}/3 allowed).`);
 
-        // 5. Second math requirement
+        // 6. Second math requirement
         const mathElectives = ["MAE 623", "MAE 671", "MAE 674", "MAE 693", "MAE 780", "ISE 690"];
         const hasMathElective = selections.some(course => mathElectives.includes(course));
 
@@ -295,7 +308,7 @@
                 const cNum = getSelectedCourseLabel(i);
                 const course = getSelectedCourse(i);
                 const cTitle = course?.title || "";
-                const cHours = course?.credits?.toString() || "3";
+                const cHours = getDisplayCredits(course) || "3";
                 const cTerm = document.getElementById(`term-${i}`).value;
                 const cYear = document.getElementById(`year-${i}`).value;
                 const cGrade = document.getElementById(`grade-${i}`).value;
