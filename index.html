@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>UAH MS ASE Official POS Generator</title>
+    <title>UAH MS ASE and ME Program of Study Validator</title>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/downloadjs@1.4.7"></script>
     <script src="catalog.js"></script>
@@ -11,6 +11,8 @@
         .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
         h1 { color: #004d99; text-align: center; }
         .instruction { background: #e7f3ff; border-left: 4px solid #004d99; padding: 15px; margin-bottom: 25px; }
+        .program-selector { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+        .program-selector select { width: auto; min-width: 260px; }
         
         .course-row { display: grid; grid-template-columns: 30px 90px 130px 1fr 80px 95px 85px 85px; gap: 10px; margin-bottom: 10px; align-items: center; }
         .header-row { font-weight: bold; color: #004d99; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; }
@@ -42,7 +44,7 @@
 <body>
 
 <div class="container">
-    <h1>UAH MS ASE Program of Study Validator</h1>
+    <h1>UAH MS ASE and ME Program of Study Validator</h1>
 
     <div class="disclaimer-box">
         <strong>⚠️ Important Disclaimer:</strong> This generated document is <strong>UNOFFICIAL</strong>. 
@@ -51,10 +53,18 @@
         Graduate Dean, and Graduate Auditor.
     </div>
     
+    <div class="program-selector">
+        <label for="program"><strong>Program:</strong></label>
+        <select id="program" class="course-input" onchange="updateProgramDetails()">
+            <option value="ASE">Aerospace Systems Engineering (MS ASE)</option>
+            <option value="ME">Mechanical Engineering (MS ME)</option>
+        </select>
+    </div>
+
     <div class="instruction">
-        <strong>Step 1:</strong> Select your courses (30 credit hours). The validator checks for <a href="https://catalog.uah.edu/index.php#/programs/HyG3rbBSy3?bc=true&bcCurrent=Aerospace%20Systems%20Engineering%20(MS)&bcGroup=College%20of%20Engineering&bcItemType=programs" target="_blank">MS ASE degree requirements</a>, which include the following: 
+        <strong>Step 1:</strong> Select your courses (30 credit hours). The validator checks for <span id="program-name">MS Aerospace Systems Engineering</span> degree requirements, which include the following:
         <ul>
-            <li>ISE 627 - ENGINEERING SYSTEMS (3 credit hours)</li>
+            <li id="ise-requirement">ISE 627 - ENGINEERING SYSTEMS (3 credit hours)</li>
             <li>MAE 692 - GRAD ENGR ANALYSIS I (3 credit hours)</li>
             <li>Additional math course: 3 credit hours selected from MAE 623, MAE 671, MAE 674, MAE 693, MAE 780, or ISE 690</li>
             <li>Up to three 500-level courses</li>
@@ -154,6 +164,21 @@
         return typeof course.credits === "number" ? course.credits.toString() : "3";
     }
 
+    function getSelectedProgram() {
+        return document.getElementById('program').value;
+    }
+
+    function updateProgramDetails() {
+        const isAse = getSelectedProgram() === 'ASE';
+        document.getElementById('program-name').textContent = isAse
+            ? 'MS Aerospace Systems Engineering (MS ASE)'
+            : 'MS Mechanical Engineering (MS ME)';
+        document.getElementById('ise-requirement').style.display = isAse ? '' : 'none';
+        document.getElementById('final-section').style.display = 'none';
+        document.getElementById('results').innerHTML = '';
+        document.getElementById('revalidate-msg').style.display = 'block';
+    }
+
     // Generate Form
     let html = '';
     for(let i=1; i<=10; i++) {
@@ -237,7 +262,9 @@
         
         // 4. Core Requirements
         if(!selections.includes("MAE 692")) errors.push("Missing MAE 692 (Core).");
-        if(!selections.includes("ISE 627")) errors.push("Missing ISE 627 (Core).");
+        if(getSelectedProgram() === 'ASE' && !selections.includes("ISE 627")) {
+            errors.push("Missing ISE 627 (Core for MS ASE).");
+        }
         
         // 5. 500-level limit
         const fiveHundreds = selections.filter(c => /^[A-Z]+ 5/.test(c)).length;
@@ -305,7 +332,7 @@
                 form.getTextField('Student Email').setText(document.getElementById('pdf-email').value);
                 form.getTextField('Date 1').setText(document.getElementById('pdf-date').value);
                 form.getTextField('Department/Program').setText(`MAE`);
-                form.getTextField('Degree').setText(`MS ASE`);
+                form.getTextField('Degree').setText(getSelectedProgram() === 'ASE' ? 'MS ASE' : 'MS ME');
             } catch(e) {}
 				
 				// 1. Create the map to abbreviate the terms
@@ -347,7 +374,8 @@
             const pdfBytes = await pdfDoc.save();
 				const rawName = document.getElementById('pdf-name').value || "Student";
 				const formattedName = rawName.trim().replace(/ /g, '-');
-            download(pdfBytes, `UAH_MS_ASE_POS_Filled_${formattedName}.pdf`, "application/pdf");
+            const degree = getSelectedProgram() === 'ASE' ? 'MS_ASE' : 'MS_ME';
+            download(pdfBytes, `UAH_${degree}_POS_Filled_${formattedName}.pdf`, "application/pdf");
         } catch (err) { alert("Error generating PDF. Check file format."); }
     }
 </script>
