@@ -11,8 +11,8 @@
         .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
         h1 { color: #004d99; text-align: center; }
         .instruction { background: #e7f3ff; border-left: 4px solid #004d99; padding: 15px; margin-bottom: 25px; }
-        .program-selector { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-        .program-selector select { width: auto; min-width: 260px; }
+        .program-selector { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+        .program-selector select { width: auto; min-width: 220px; }
         
         .course-row { display: grid; grid-template-columns: 30px 90px 130px 1fr 80px 95px 85px 85px; gap: 10px; margin-bottom: 10px; align-items: center; }
         .header-row { font-weight: bold; color: #004d99; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; }
@@ -26,7 +26,6 @@
         #final-section { display: none; margin-top: 30px; padding: 25px; border: 2px solid #28a745; background: #f4fff6; border-radius: 8px; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
         .upload-box { border: 2px dashed #28a745; padding: 15px; text-align: center; margin-bottom: 20px; border-radius: 8px; }
-        .radio-group { padding: 10px; background: #fff; border: 1px solid #ccc; border-radius: 4px; display: flex; gap: 20px; align-items: center; }
         
         .validation-warning { color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 4px; display: none; margin-top: 10px; text-align: center; }
         .disclaimer-box {
@@ -59,6 +58,11 @@
             <option value="ASE">Aerospace Systems Engineering (MS ASE)</option>
             <option value="ME">Mechanical Engineering (MS ME)</option>
         </select>
+        <label for="track"><strong>Track:</strong></label>
+        <select id="track" class="course-input" onchange="updateProgramDetails()">
+            <option value="NON_THESIS">Non-Thesis</option>
+            <option value="THESIS">Thesis</option>
+        </select>
     </div>
 
     <div class="instruction">
@@ -66,9 +70,10 @@
         <ul>
             <li id="ise-requirement">ISE 627 - ENGINEERING SYSTEMS (3 credit hours)</li>
             <li>MAE 692 - GRAD ENGR ANALYSIS I (3 credit hours)</li>
+            <li id="thesis-requirement" style="display: none;">Two MAE 699 - MASTER'S THESIS courses (6 credit hours total)</li>
             <li>Additional math course: 3 credit hours selected from MAE 623, MAE 671, MAE 674, MAE 693, MAE 780, or ISE 690</li>
             <li>Up to three 500-level courses</li>
-            <li>At least six courses must be from MAE. In general, other graduate courses from the College of Engineering or College of Science may be counted toward the degree.</li>
+            <li id="mae-majority-requirement">At least six courses must be from MAE. In general, other graduate courses from the College of Engineering or College of Science may be counted toward the degree.</li>
         </ul>
         Course offering:
         <ul>
@@ -101,7 +106,7 @@
     <div id="results"></div>
 
     <div id="final-section">
-        <h3 style="margin-top:0; color:#1e7e34;">Step 2: Thesis Option & Student Details</h3>
+        <h3 style="margin-top:0; color:#1e7e34;">Step 2: Student Details</h3>
         
         <!--
         <div class="upload-box">
@@ -111,13 +116,6 @@
         -->
 
         <div class="form-grid">
-            <div style="grid-column: span 2;">
-                <label><strong>Program Track:</strong></label>
-                <div class="radio-group">
-                    <label><input type="radio" name="track" value="Non-Thesis" checked> Non-Thesis</label>
-                    <label><input type="radio" name="track" value="Thesis"> Thesis</label>
-                </div>
-            </div>
             <input type="text" id="pdf-name" placeholder="Student Full Name">
             <input type="text" id="pdf-ano" placeholder="A-Number (e.g. A01234567)">
             <input type="email" id="pdf-email" placeholder="UAH Email">
@@ -168,12 +166,21 @@
         return document.getElementById('program').value;
     }
 
+    function isThesisTrack() {
+        return document.getElementById('track').value === 'THESIS';
+    }
+
     function updateProgramDetails() {
         const isAse = getSelectedProgram() === 'ASE';
+        const isThesis = isThesisTrack();
         document.getElementById('program-name').textContent = isAse
             ? 'MS Aerospace Systems Engineering (MS ASE)'
             : 'MS Mechanical Engineering (MS ME)';
         document.getElementById('ise-requirement').style.display = isAse ? '' : 'none';
+        document.getElementById('thesis-requirement').style.display = isThesis ? '' : 'none';
+        document.getElementById('mae-majority-requirement').textContent = isThesis
+            ? 'Excluding the 6 thesis credit hours, at least five courses must be from MAE. In general, other graduate courses from the College of Engineering or College of Science may be counted toward the degree.'
+            : 'At least six courses must be from MAE. In general, other graduate courses from the College of Engineering or College of Science may be counted toward the degree.';
         document.getElementById('final-section').style.display = 'none';
         document.getElementById('results').innerHTML = '';
         document.getElementById('revalidate-msg').style.display = 'block';
@@ -248,7 +255,10 @@
         const errors = [];
         
         // 1. Check for duplicates
-        const duplicates = rawSelections.filter((item, index) => rawSelections.indexOf(item) !== index);
+        const duplicateCandidates = isThesisTrack()
+            ? rawSelections.filter(course => course !== 'MAE 699')
+            : rawSelections;
+        const duplicates = duplicateCandidates.filter((item, index) => duplicateCandidates.indexOf(item) !== index);
         const uniqueDuplicates = [...new Set(duplicates)];
         if(uniqueDuplicates.length > 0) {
             errors.push(`Duplicate courses detected: ${uniqueDuplicates.join(", ")}`);
@@ -265,6 +275,12 @@
         if(getSelectedProgram() === 'ASE' && !selections.includes("ISE 627")) {
             errors.push("Missing ISE 627 (Core for MS ASE).");
         }
+        if(isThesisTrack()) {
+            const thesisCourseCount = selections.filter(course => course === 'MAE 699').length;
+            if(thesisCourseCount !== 2) {
+                errors.push(`Thesis students must select MAE 699 twice (6 credit hours). Current selections: ${thesisCourseCount}.`);
+            }
+        }
         
         // 5. 500-level limit
         const fiveHundreds = selections.filter(c => /^[A-Z]+ 5/.test(c)).length;
@@ -279,9 +295,10 @@
         }
 
         // 7. MAE majority requirement
-        const maeCourses = selections.filter(course => course.startsWith("MAE ")).length;
-        if (maeCourses < 6) {
-            errors.push(`At least six courses must be from MAE. Current MAE courses: ${maeCourses}.`);
+        const maeCourses = selections.filter(course => course.startsWith("MAE ") && course !== 'MAE 699').length;
+        const requiredMaeCourses = isThesisTrack() ? 5 : 6;
+        if (maeCourses < requiredMaeCourses) {
+            errors.push(`At least ${requiredMaeCourses} non-thesis courses must be from MAE. Current MAE courses: ${maeCourses}.`);
         }
 
         if(errors.length === 0) {
@@ -318,7 +335,7 @@
             //const pdfDoc = await PDFDocument.load(bytes);
             //const form = pdfDoc.getForm();
 
-            const isThesis = document.querySelector('input[name="track"]:checked').value === 'Thesis';
+            const isThesis = isThesisTrack();
             try {
                 const tBox = form.getCheckBox('Thesis');
                 const ntBox = form.getCheckBox('Non-Thesis');
