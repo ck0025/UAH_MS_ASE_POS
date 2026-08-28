@@ -280,6 +280,8 @@
             if(thesisCourseCount !== 2) {
                 errors.push(`Thesis students must select MAE 699 twice (6 credit hours). Current selections: ${thesisCourseCount}.`);
             }
+        } else if(selections.includes('MAE 699')) {
+            errors.push('Non-thesis students may not select MAE 699.');
         }
         
         // 5. 500-level limit
