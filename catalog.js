@@ -752,6 +752,10 @@ const catalog = {
             "title": "MACHINE LEARNING FOR EGR APP",
             "credits": 3
         },
+        "587": {
+            "title": "DEEP LEARNING FOR EGR APP",
+            "credits": 3
+        },
         "590": {
             "title": "SPECIAL TOPICS IN COMP ENGR",
             "credits": "1-3"
