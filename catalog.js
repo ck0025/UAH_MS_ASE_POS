@@ -144,7 +144,7 @@ const catalog = {
             "title": "DUAL POLARIZATION RADAR MTRLGY",
             "credits": 3
         },
-        "673": {
+        "673": { 
             "title": "LIGHTNING",
             "credits": 3
         },
